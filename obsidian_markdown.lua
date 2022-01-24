@@ -13,7 +13,7 @@ local tabsize = 2
 
 local whitespacechar = S(" \t\r\n")
 -- local specialchar = S("/*~[]\\{}|")
-local specialchar = S("[]|`*~=+->")
+local specialchar = S("[]|`*~=+->!")
 local wordchar = (1 - (whitespacechar + specialchar))
 local spacechar = S(" \t")
 local newline = P"\r"^-1 * P"\n" -- at most one \r, followed by \n
@@ -101,6 +101,7 @@ G = P{ "Doc",
          + V"Strikeout"
          + V"Highlight"
          + V"Link"
+         + V"URL"
          + V"Str"
          + V"Space"
          + V"CodeInline"
@@ -115,7 +116,7 @@ G = P{ "Doc",
   SpecialChar = specialchar
               / pandoc.Str ;
   -- links to other files
-  Link = V"WikiLink"
+  Link = V"Image" + V"WikiLink"
        + V"MarkdownLink" ;
   -- Link = V"WikiLink" ;
   WikiLink = P"[["
@@ -128,8 +129,7 @@ G = P{ "Doc",
              end ;
   MarkdownLink = P"["
                * Ct((V"Inline" - P"]")^0)
-               * P"]"
-               * P"("
+               * P"]("
                * C((1 - P")")^0)
                * P")"
                / function(desc, url)
@@ -139,6 +139,30 @@ G = P{ "Doc",
                    end
                    return pandoc.Link(txt, url)
                  end ;
+  URL = P"http"
+      * P"s"^-1
+      * P":"
+      * (1 - (whitespacechar + (S",.?!:;\"'" * #whitespacechar)))^1
+      /  function(url)
+           return pandoc.Link(pandoc.Str(url), url)
+         end ;
+  -- TODO handle defined image size
+  -- TODO handle other embedded types eg. other pages
+  Image = P"!["
+        * Ct((V"Inline" - (P"]" + P"|"))^0)
+        * (P"|" * Ct((V"Inline" - P"]")^1))^-1
+        * P"]("
+        * C((1 - P")")^0)
+        * P")"
+        / function(desc, widthifexists_or_url, url)
+            local txt = desc
+            if next(desc) == nul then
+              txt = ""
+            end
+            -- handle if no width is specified; then url is passed in 2nd argument
+            url = url or widthifexists_or_url
+            return pandoc.Image(txt, url)
+          end ;
   -- MarkdownLink = P"["
   --              -- * C((1 - P"]")^1)
   --              * Ct(1^0)
