@@ -13,7 +13,7 @@ local tabsize = 2
 
 local whitespacechar = S(" \t\r\n")
 -- local specialchar = S("/*~[]\\{}|")
-local specialchar = S("[]|`*~=+-")
+local specialchar = S("[]|`*~=+->")
 local wordchar = (1 - (whitespacechar + specialchar))
 local spacechar = S(" \t")
 local newline = P"\r"^-1 * P"\n" -- at most one \r, followed by \n
@@ -29,6 +29,7 @@ local function trim(s)
 end
 
 -- TODO make this work with tab indenting
+-- TODO checklists
 local function ListItem(level, start)
   local spaceindent = level * tabsize
   local indent = P" "^spaceindent + P"\t"^level
@@ -70,11 +71,15 @@ G = P{ "Doc",
         * ( V"Header"
           + V"CodeBlock"
           + V"List"
+          + V"QuoteBlock"
           + V"Para" ) ;
   -- paragraph
-  Para = Ct(V"Inline"^1)
-       * newline
+  Para = Ct(V"Inline"^1 * (V"ParaSpace" * V"Inline"^1)^0)
+       * blankline
        / pandoc.Para ;
+  -- used to add a space between multiple lines in the same paragraph
+  -- (use a blank line in between paras)
+  ParaSpace = newline / pandoc.Space ;
   -- header
   Header = (P("#")^1 / string.len)
          * spacechar^1
@@ -86,6 +91,10 @@ G = P{ "Doc",
              / pandoc.BulletList ;
   OrderedList = Ct(ListItem(0, orderedliststart)^1)
               / pandoc.OrderedList ;
+  QuoteBlock = P">"
+             * spacechar^0
+             * V"Para"
+             / pandoc.BlockQuote ;
   -- inline elements
   Inline = V"Emph"
          + V"Strong"
@@ -102,13 +111,28 @@ G = P{ "Doc",
   Space = spacechar^1
         / pandoc.Space ;
   -- links to other files
-  Link = P"[["
-       * C((1 - (P"]]" + P"|"))^0)
-       * (P"|" * Ct((V"Inline" - P"]]")^1))^-1 * P"]]"
-       / function(url, desc)
-          local txt = desc or {pandoc.Str(url)}
-          return pandoc.Link(txt, url)
-        end ;
+  -- Link = V"MarkdownLink"
+  --      + V"WikiLink" ;
+  Link = V"WikiLink" ;
+  WikiLink = P"[["
+           * C((1 - (P"]]" + P"|"))^0)
+           * (P"|" * Ct((V"Inline" - P"]]")^1))^-1
+           * P"]]"
+           / function(url, desc)
+               local txt = desc or {pandoc.Str(url)}
+               return pandoc.Link(txt, url)
+             end ;
+  -- MarkdownLink = P"["
+  --              * C((1 - P"]")^1)
+  --              * P"]"
+  --              / pandoc.Para ;
+               -- * P"]("
+               -- * C((1 - P"]")^0)
+               -- * P")"
+               -- / function(desc, url)
+               --     -- local txt = desc or {pandoc.Str(url)}
+               --     return pandoc.Link(desc, url)
+               --   end ;
   -- `inline code`
   CodeInline = P"`"
        * C((1 - P"`")^0)
