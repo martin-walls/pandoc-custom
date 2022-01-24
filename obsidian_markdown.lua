@@ -103,13 +103,17 @@ G = P{ "Doc",
          + V"Link"
          + V"Str"
          + V"Space"
-         + V"CodeInline" ;
+         + V"CodeInline"
+         + V"SpecialChar" ;
   -- strings
   Str = wordchar^1
       / pandoc.Str ;
   -- spaces
   Space = spacechar^1
         / pandoc.Space ;
+  -- if nothing else matches, just display special chars
+  SpecialChar = specialchar
+              / pandoc.Str ;
   -- links to other files
   Link = V"WikiLink"
        + V"MarkdownLink" ;
