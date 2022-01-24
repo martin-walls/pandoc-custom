@@ -111,9 +111,9 @@ G = P{ "Doc",
   Space = spacechar^1
         / pandoc.Space ;
   -- links to other files
-  -- Link = V"MarkdownLink"
-  --      + V"WikiLink" ;
-  Link = V"WikiLink" ;
+  Link = V"WikiLink"
+       + V"MarkdownLink" ;
+  -- Link = V"WikiLink" ;
   WikiLink = P"[["
            * C((1 - (P"]]" + P"|"))^0)
            * (P"|" * Ct((V"Inline" - P"]]")^1))^-1
@@ -122,10 +122,26 @@ G = P{ "Doc",
                local txt = desc or {pandoc.Str(url)}
                return pandoc.Link(txt, url)
              end ;
+  MarkdownLink = P"["
+               * Ct((V"Inline" - P"]")^0)
+               * P"]"
+               * P"("
+               * C((1 - P")")^0)
+               * P")"
+               / function(desc, url)
+                   local txt = desc
+                   if next(desc) == nil then
+                     txt = {pandoc.Str(url)}
+                   end
+                   return pandoc.Link(txt, url)
+                 end ;
   -- MarkdownLink = P"["
-  --              * C((1 - P"]")^1)
-  --              * P"]"
-  --              / pandoc.Para ;
+  --              -- * C((1 - P"]")^1)
+  --              * Ct(1^0)
+  --              * P"]("
+  --              * C(1^0)
+  --              * P")"
+  --              / pandoc.Plain ;
                -- * P"]("
                -- * C((1 - P"]")^0)
                -- * P")"
